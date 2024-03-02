@@ -1,7 +1,41 @@
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
+from .models import Question, Choice
+from django.shortcuts import get_object_or_404,render
+from django.urls import reverse
+from django.views import generic
 
 
-def index(request):
-    return HttpResponse(
-        "<img src='https://images.techinsider.ru/upload/img_cache/bab/bab3324f6b0470e5156a1ebd5e48ce14_ce_1920x1280x0x0_cropped_666x444.jpg'>"
-        "<style>img{width:1000px}")
+
+class IndexView(generic.ListView):
+    template_name = 'polls/index.html'
+    context_object_name = 'latest_question_list'
+
+
+
+
+    def get_queryset(self):
+        """Return the last five published"""
+        return Question.objects.order_by('-pub_date')[:5]
+
+class DetailView(generic.DetailView):
+    model = Question
+    template_name = 'polls/detail.html'
+
+class ResultsView(generic.DetailView):
+    model = Question
+    template_name = 'polls/results.html'
+
+def vote(request, question_id):
+    question = get_object_or_404(Question, pk=question_id)
+    try:
+        select_choice = question.choice_set.get(pk=request.POST.get('choice'))
+    except (KeyError, Choice.DoesNotExist):
+        return render(request, 'polls/detail.html', {
+            'question': question,
+            'error_message': "Ничего не найдено",
+        })
+    else:
+        selected_choice.votes += 1
+        selected_choice.save()
+        return HttpResponseRedirect(reverse('polls:results', arg=(question.id,)))
+

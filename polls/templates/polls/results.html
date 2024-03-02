@@ -1,0 +1,11 @@
+<h1>{{ question.question_text }}</h1>
+
+<ul>
+    <form  method="post"> { % csrf_token %}
+{% for choice in question.choice_set.all %}
+    <li>{{ choice.choice_text }} -- {{ choice.votes|pluralize }}</li>
+(% endfor %)
+        </form>
+</ul>
+
+<a href="{% url 'polls:detail' question.id %}">Проголосовать снова?</a>
