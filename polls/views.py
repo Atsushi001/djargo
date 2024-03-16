@@ -1,25 +1,35 @@
-from django.http import HttpResponse, HttpResponseRedirect
-from .models import Question, Choice
+from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.views import generic
+
+from .models import Choice, Question
+
 from django.utils import timezone
-
-
-class IndexView(generic.ListView):
-    template_name = 'polls/index.html'
-    context_object_name = 'latest_question_list'
-
-    def get_queryset(self):
-        return Question.objects.filter(pub_date=timezone.now())
-        order_by('-pub_date')[:5]
 
 
 class DetailView(generic.DetailView):
     model = Question
     template_name = 'polls/detail.html'
     def get_queryset(self):
+        """
+        Исключает ещё неопубликованные вопросы
+        """
         return Question.objects.filter(pub_date__lte=timezone.now())
+
+class IndexView(generic.ListView):
+    template_name = 'polls/index.html'
+    context_object_name = 'latest_question_list'
+
+    def get_queryset(self):
+        """
+        Возвращает 5 последних вопросов, кроме тех, чья
+        публикация будет в будущем
+        """
+        return Question.objects.filter(
+            pub_date__lte=timezone.now()
+        ).order_by('-pub_date')[:5]
+
 
 
 class ResultsView(generic.DetailView):
@@ -30,13 +40,17 @@ class ResultsView(generic.DetailView):
 def vote(request, question_id):
     question = get_object_or_404(Question, pk=question_id)
     try:
-        selected_choice = question.choice_set.get(pk=request.POST.get('choice'))
+        selected_choice = question.choice_set.get(pk=request.POST['choice'])
     except (KeyError, Choice.DoesNotExist):
+        # Снова отображаем страницу detail
         return render(request, 'polls/detail.html', {
             'question': question,
-            'error_message': "Ничего не найдено",
+            'error_message': "Ничего не выбрано!",
         })
     else:
         selected_choice.votes += 1
         selected_choice.save()
-        return HttpResponseRedirect(reverse('polls:results', arg=(question.id,)))
+        # Всегда возвращайте HttpResponseRedirect после успешной
+        # обработки POST. Это защищает от повторной отправки
+        # сообщения при нажатии на кнопку "назад"
+        return HttpResponseRedirect(reverse('polls:results', args=(question.id,)))
